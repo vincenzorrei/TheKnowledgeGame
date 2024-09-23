@@ -27,7 +27,8 @@ class Game:
         self.reading_time = 0
         self.answer_time = 0
         self.is_challenge = False
-        self.probability_of_event = 0.5  # Adjust as needed
+        self.probability_of_event = 0.3  # Adjust as needed
+        self.rounds_completed = 0
 
         self.setup_ui()
 
@@ -84,9 +85,19 @@ class Game:
         """
         Proceed to the next player's turn.
         """
+        # Check if all questions have been asked
         if all(q.asked for q in self.questions):
             self.end_game()
             return
+
+        # Check if we need to ask players whether to continue
+        if self.current_player_index == 0 and self.rounds_completed > 0:
+            continue_game = messagebox.askyesno(
+                "Continue Game", "Do you want to play another round?"
+            )
+            if not continue_game:
+                self.end_game()
+                return
 
         self.current_player = self.players[self.current_player_index]
         self.opponent_player = None
@@ -257,31 +268,22 @@ class Game:
         """
         Advance to the next player.
         """
+        prev_player_index = self.current_player_index
         self.current_player_index = (self.current_player_index + 1) % len(self.players)
         self.is_challenge = False
+
+        if (
+            self.current_player_index == 0
+            and prev_player_index != self.current_player_index
+        ):
+            # A full round is completed
+            self.rounds_completed += 1
 
     def end_game(self):
         """
         Handle the end of the game.
         """
-        # Ask if players want to play again
-        play_again = messagebox.askyesno(
-            "Game Over", "The game has ended. Do you want to play again?"
-        )
-        if play_again:
-            self.reset_game()
-            self.next_turn()
-        else:
-            # Show the score chart
-            Chart.show_score_chart(self.players)
-            self.root.destroy()
-
-    def reset_game(self):
-        """
-        Reset the game state for a new game.
-        """
-        for player in self.players:
-            player.reset()
-        for question in self.questions:
-            question.asked = False
-        self.current_player_index = 0
+        # Destroy the root window to terminate the Tkinter main loop
+        self.root.destroy()
+        # Show the score chart after Tkinter has been closed
+        Chart.show_score_chart(self.players)
