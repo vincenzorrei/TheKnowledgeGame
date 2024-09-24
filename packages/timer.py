@@ -55,7 +55,7 @@ class Timer:
         time_str = f"Time Remaining: {minutes:02d}:{seconds:02d}"
         # Assuming there's a label in the root window to display the timer
         if hasattr(self.root, "timer_label"):
-            self.root.timer_label.config(text=time_str)
+            self.root.timer_label.configure(text=time_str)
 
     def cancel(self):
         """
@@ -74,4 +74,4 @@ class Timer:
         Clear the timer display in the GUI.
         """
         if hasattr(self.root, "timer_label"):
-            self.root.timer_label.config(text="")
+            self.root.timer_label.configure(text="")

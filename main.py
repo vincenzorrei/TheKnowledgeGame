@@ -1,13 +1,15 @@
-import tkinter as tk
+# main.py
+
+import customtkinter as ctk
 
 from packages.game import Game
 
 
 def main():
-    root = tk.Tk()
-    root.title("Quiz Game")
-    game = Game(root)
-    root.mainloop()
+    app = ctk.CTk()
+    app.title("The Data Game")
+    game = Game(app)
+    app.mainloop()
 
 
 if __name__ == "__main__":

@@ -1,8 +1,10 @@
 # game.py
 
 import random
-import tkinter as tk
-from tkinter import messagebox, simpledialog
+from tkinter import simpledialog
+
+import customtkinter as ctk
+from CTkMessagebox import CTkMessagebox
 
 from packages.chart import Chart
 from packages.excel_reader import ExcelReader
@@ -15,11 +17,17 @@ from packages.timer import Timer
 class Game:
     def __init__(self, root):
         """
-        Initialize the game with the main Tkinter window.
+        Initialize the game with the main customtkinter window.
         """
         self.root = root
+        ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
+        ctk.set_default_color_theme(
+            "blue"
+        )  # Themes: "blue" (default), "green", "dark-blue"
+
         self.players = []
         self.current_player_index = 0
+        self.current_player = None  # Initialize current_player
         self.questions = []
         self.current_question = None
         self.sound_manager = SoundManager()
@@ -27,6 +35,7 @@ class Game:
         self.reading_time = 0
         self.answer_time = 0
         self.is_challenge = False
+        self.opponent_player = None  # Store the selected opponent
         self.probability_of_event = 0.8  # Adjust as needed
         self.rounds_completed = 0
 
@@ -34,42 +43,176 @@ class Game:
 
     def setup_ui(self):
         """
-        Set up the user interface elements.
+        Set up the user interface elements using customtkinter.
         """
-        self.root.geometry("600x400")
+        self.root.geometry("800x600")
+        self.root.title("Quiz Game")
 
-        self.name_label = tk.Label(
-            self.root, text="Enter player names (comma-separated):"
+        self.main_frame = ctk.CTkFrame(self.root)
+        self.main_frame.pack(pady=20, padx=20, fill="both", expand=True)
+
+        self.name_label = ctk.CTkLabel(
+            self.main_frame,
+            text="Enter player names (comma-separated):",
+            font=ctk.CTkFont(size=14),
         )
-        self.name_label.pack()
+        self.name_label.pack(pady=12)
 
-        self.name_entry = tk.Entry(self.root)
-        self.name_entry.pack()
+        self.name_entry = ctk.CTkEntry(self.main_frame, width=400)
+        self.name_entry.pack(pady=12)
 
-        self.start_button = tk.Button(
-            self.root, text="Start Game", command=self.start_game
+        self.start_button = ctk.CTkButton(
+            self.main_frame, text="Start Game", command=self.start_game
         )
-        self.start_button.pack()
+        self.start_button.pack(pady=12)
 
         # Create a frame for the question and timer
-        self.question_frame = tk.Frame(self.root)
-        self.question_label = tk.Label(
-            self.question_frame, text="", font=("Helvetica", 13), wraplength=500
+        self.question_frame = ctk.CTkFrame(self.root)
+        self.question_label = ctk.CTkLabel(
+            self.question_frame,
+            text="",
+            font=ctk.CTkFont(size=18),
+            wraplength=500,
+            justify="left",
         )
-        self.timer_label = tk.Label(
-            self.question_frame, text="", fg="red", font=("Helvetica", 10)
+        self.timer_label = ctk.CTkLabel(
+            self.question_frame,
+            text="",
+            fg_color="transparent",
+            text_color="red",
+            font=ctk.CTkFont(size=14),
         )
 
         # Place the question label in the frame; timer_label will be packed when needed
         self.question_label.pack(pady=10)
-        # Do not pack timer_label yet
 
         # Reference timer_label in root so Timer can access it
         self.root.timer_label = self.timer_label
 
-        self.submit_button = tk.Button(
+        self.submit_button = ctk.CTkButton(
             self.root, text="Submit Answer", command=self.submit_answer
         )
+
+        # Sidebar Frame (Do not pack yet)
+        self.sidebar_frame = ctk.CTkFrame(self.root, width=200)
+        # self.sidebar_frame.pack(side="right", fill="y")  # Move this to start_game()
+
+        # Top Players Section
+        self.top_players_frame = ctk.CTkFrame(self.sidebar_frame)
+        self.top_players_frame.pack(pady=10, padx=10, fill="x")
+
+        self.top_players_label = ctk.CTkLabel(
+            self.top_players_frame,
+            text="Top Players",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+        self.top_players_label.pack(pady=(10, 5))
+
+        self.top_players_text = ctk.CTkLabel(
+            self.top_players_frame, text="", font=ctk.CTkFont(size=12), justify="left"
+        )
+        self.top_players_text.pack(pady=5)
+
+        # Separator
+        separator1 = ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="gray")
+        separator1.pack(fill="x", pady=10)
+
+        # Rounds Completed Section
+        self.rounds_frame = ctk.CTkFrame(self.sidebar_frame)
+        self.rounds_frame.pack(pady=10, padx=10, fill="x")
+
+        self.rounds_label = ctk.CTkLabel(
+            self.rounds_frame,
+            text="Rounds Completed",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+
+        self.rounds_label.pack(pady=(10, 5))
+
+        self.rounds_text = ctk.CTkLabel(
+            self.rounds_frame, text="0", font=ctk.CTkFont(size=12)
+        )
+        self.rounds_text.pack(pady=5)
+
+        # Separator
+        separator2 = ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="gray")
+        separator2.pack(fill="x", pady=10)
+
+        # Current Player Section
+        self.current_player_frame = ctk.CTkFrame(self.sidebar_frame)
+        self.current_player_frame.pack(pady=10, padx=10, fill="x")
+
+        self.current_player_label = ctk.CTkLabel(
+            self.current_player_frame,
+            text="Current Player",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+
+        self.current_player_label.pack(pady=(10, 5))
+
+        self.current_player_text = ctk.CTkLabel(
+            self.current_player_frame,
+            text="",
+            font=ctk.CTkFont(size=12),
+        )
+        self.current_player_text.pack(pady=5)
+
+        # Separator
+        separator3 = ctk.CTkFrame(self.sidebar_frame, height=2, fg_color="gray")
+        separator3.pack(fill="x", pady=10)
+
+        # Question Info Section
+        self.question_info_frame = ctk.CTkFrame(self.sidebar_frame)
+        self.question_info_frame.pack(pady=10, padx=10, fill="x")
+
+        self.question_info_label = ctk.CTkLabel(
+            self.question_info_frame,
+            text="Question Info",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        )
+
+        self.question_info_label.pack(pady=(10, 5))
+
+        self.question_info_text = ctk.CTkLabel(
+            self.question_info_frame, text="", font=ctk.CTkFont(size=12), justify="left"
+        )
+
+        self.question_info_text.pack(pady=5)
+
+    def update_sidebar(self):
+        """
+        Update the sidebar with current game information.
+        """
+        # Update top players
+        sorted_players = sorted(self.players, key=lambda p: p.score, reverse=True)
+        top_players = sorted_players[:3]
+        top_players_text = "\n".join(
+            [
+                f"{i+1}. {player.name}: {player.score}"
+                for i, player in enumerate(top_players)
+            ]
+        )
+        self.top_players_text.configure(text=top_players_text)
+
+        # Update rounds completed
+        self.rounds_text.configure(text=f"{self.rounds_completed}")
+
+        # Update current player
+        if self.current_player:
+            self.current_player_text.configure(text=f"{self.current_player.name}")
+        else:
+            self.current_player_text.configure(text="")
+
+        # Update question info
+        if self.current_question:
+            domain = self.current_question.domain
+            difficulty = self.current_question.difficulty
+            difficulty_str = "*" * int(difficulty)
+            self.question_info_text.configure(
+                text=f"Domain: {domain}\nDifficulty: {difficulty_str}"
+            )
+        else:
+            self.question_info_text.configure(text="")
 
     def start_game(self):
         """
@@ -77,17 +220,27 @@ class Game:
         """
         names = self.name_entry.get().split(",")
         if not names:
-            messagebox.showerror("Error", "Please enter at least one player name.")
+            CTkMessagebox(
+                title="Error",
+                message="Please enter at least one player name.",
+                icon="cancel",
+            )
             return
 
         self.players = [Player(name.strip()) for name in names if name.strip()]
         if not self.players:
-            messagebox.showerror("Error", "Please enter valid player names.")
+            CTkMessagebox(
+                title="Error", message="Please enter valid player names.", icon="cancel"
+            )
             return
 
         self.name_label.pack_forget()
         self.name_entry.pack_forget()
         self.start_button.pack_forget()
+        self.main_frame.pack_forget()
+
+        # Pack the sidebar frame now
+        self.sidebar_frame.pack(side="right", fill="y")
 
         # Load questions from Excel
         excel_reader = ExcelReader("questions.xlsx")
@@ -99,6 +252,15 @@ class Game:
         """
         Proceed to the next player's turn.
         """
+        # Reset opponent_player at the start of the turn
+        self.opponent_player = None
+
+        # Assign current player
+        self.current_player = self.players[self.current_player_index]
+
+        # Update sidebar
+        self.update_sidebar()
+
         # Check if all questions have been asked
         if all(q.asked for q in self.questions):
             self.end_game()
@@ -106,21 +268,24 @@ class Game:
 
         # Check if we need to ask players whether to continue
         if self.current_player_index == 0 and self.rounds_completed > 0:
-            continue_game = messagebox.askyesno(
-                "Continue Game", "Do you want to play another round?"
-            )
-            if not continue_game:
+            continue_game = CTkMessagebox(
+                title="Continue Game",
+                message="Do you want to play another round?",
+                icon="question",
+                option_1="Yes",
+                option_2="No",
+            ).get()
+            if continue_game == "No":
                 self.end_game()
                 return
-
-        self.current_player = self.players[self.current_player_index]
-        self.opponent_player = None
 
         # Check if the current player is skipped
         if self.current_player.skip_turns > 0:
             self.current_player.skip_turns -= 1
-            messagebox.showinfo(
-                "Skip Turn", f"{self.current_player.name}'s turn is skipped!"
+            CTkMessagebox(
+                title="Skip Turn",
+                message=f"{self.current_player.name}'s turn is skipped!",
+                icon="info",
             )
             self.sound_manager.play_skip_sound()
             self.advance_player()
@@ -148,8 +313,9 @@ class Game:
         # Hide previous question and timer
         self.question_frame.pack_forget()
         self.timer_label.pack_forget()
-        self.timer_label.config(text="")
-        self.question_label.config(text="")
+        self.timer_label.configure(text="")
+        self.question_label.configure(text="")
+        self.submit_button.pack_forget()
 
         self.current_question = self.choose_unasked_question()
 
@@ -159,19 +325,25 @@ class Game:
         difficulty_str = "*" * int(difficulty)
 
         if not self.is_challenge:
-            accept = messagebox.askyesno(
-                "Question Offer",
-                f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty_str}\nDo you accept this question?",
-            )
+            accept = CTkMessagebox(
+                title=f"Question Offer for {self.current_player.name}",
+                message=f"Domain: {domain}\nDifficulty level: {difficulty_str}\nDo you accept this question?",
+                icon="question",
+                option_1="Yes",
+                option_2="No",
+            ).get()
+            accept = accept == "Yes"
         else:
-            messagebox.showinfo(
-                "Question",
-                f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty_str}",
+            CTkMessagebox(
+                title="Question",
+                message=f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty_str}",
+                icon="info",
             )
             accept = True
 
         if accept:
             self.current_question.asked = True
+            self.update_sidebar()
             self.display_question()
         else:
             # Re-draw a different question
@@ -186,13 +358,13 @@ class Game:
             self.timer.cancel()
             self.timer = None
 
-        self.question_label.config(
+        self.question_label.configure(
             text=f"{self.current_player.name}, here is your question:\n\n{self.current_question.text}"
         )
-        self.timer_label.config(text="")  # Reset timer label text
+        self.timer_label.configure(text="")  # Reset timer label text
 
         # Pack the question frame
-        self.question_frame.pack(pady=20)
+        self.question_frame.pack(pady=20, padx=20, fill="both", expand=True)
 
         # Remove the submit button if it is visible
         self.submit_button.pack_forget()
@@ -222,7 +394,7 @@ class Game:
         # Pack the timer_label to show the timer
         self.timer_label.pack()
 
-        self.submit_button.pack()
+        self.submit_button.pack(pady=10)
 
         # Start the answer timer
         self.timer = Timer(self.root, self.answer_time, self.time_up)
@@ -232,7 +404,7 @@ class Game:
         """
         Handle the submission of an answer.
         """
-        time_remaining = self.timer.time_remaining
+        time_remaining = self.timer.time_remaining if self.timer else 0
         if self.timer:
             self.timer.cancel()
             self.timer = None
@@ -242,23 +414,27 @@ class Game:
         self.question_frame.pack_forget()
 
         # Ask the user to confirm if the answer is correct
-        is_correct = messagebox.askyesno(
-            "Answer Confirmation", "Is the answer correct?"
+        is_correct = (
+            CTkMessagebox(
+                title="Answer Confirmation",
+                message="Is the answer correct?",
+                icon="question",
+                option_1="Yes",
+                option_2="No",
+            ).get()
+            == "Yes"
         )
+
         if is_correct:
             if self.is_challenge:
                 # Challenge: Current player gains points; opponent loses points
                 points = self.current_question.difficulty
-                if time_remaining < 0:
+                if time_remaining <= 0:
                     points = 0
                 self.current_player.add_score(points)
-                self.opponent_player.add_score(-points)
+                if self.opponent_player:
+                    self.opponent_player.add_score(-points)
                 self.sound_manager.play_correct_sound()
-
-                messagebox.showinfo(
-                    "Challenge concluded",
-                    f"{self.current_player.name} gains {points} points!\n{self.opponent_player.name} loses {points} points!",
-                )
             else:
                 # Regular question
                 points = self.current_question.difficulty
@@ -273,8 +449,8 @@ class Game:
                 if event_chance < self.probability_of_event:
                     self.handle_random_event()
                     if self.is_challenge:
-                        return  # Exit early to handle the event
-
+                        return  # Exit early to handle the challenge
+                    # For skip_turn, continue to advance_player()
         else:
             self.sound_manager.play_incorrect_sound()
 
@@ -282,6 +458,7 @@ class Game:
         self.is_challenge = False
         self.opponent_player = None
 
+        self.update_sidebar()
         self.advance_player()
         self.next_turn()
 
@@ -291,8 +468,10 @@ class Game:
         """
         if self.is_challenge:
             # For challenges, time up means the answer is incorrect
-            messagebox.showinfo(
-                "Time's Up", "Time is up! The answer is considered incorrect."
+            CTkMessagebox(
+                title="Time's Up",
+                message="Time is up! The answer is considered incorrect.",
+                icon="warning",
             )
             self.submit_button.pack_forget()
             self.timer_label.pack_forget()
@@ -301,11 +480,17 @@ class Game:
 
             # Proceed as if the answer was incorrect
             self.sound_manager.play_incorrect_sound()
+            # Reset challenge flag and opponent
+            self.is_challenge = False
+            self.opponent_player = None
+            # Advance to next player
             self.advance_player()
             self.next_turn()
         else:
             # For regular questions, nothing happens; player can still submit the answer
-            self.timer_label.config(text="Time's up! You can still submit your answer.")
+            self.timer_label.configure(
+                text="Time's up! You can still submit your answer."
+            )
             # Cancel the timer to prevent further updates
             if self.timer:
                 self.timer.cancel()
@@ -319,24 +504,27 @@ class Game:
         if event == "challenge":
             self.sound_manager.play_challenge_sound()
             opponent = self.select_opponent()
-            self.opponent_player = opponent
-            self.is_challenge = True
-            messagebox.showinfo("Challenge", f"You are challenging {opponent.name}!")
+            if opponent:
+                self.opponent_player = opponent
+                self.is_challenge = True
+                CTkMessagebox(
+                    title="Challenge",
+                    message=f"You are challenging {opponent.name}!",
+                    icon="info",
+                )
 
-            # Reset the timer before starting the challenge
-            if self.timer:
-                self.timer.cancel()
-                self.timer = None
-            self.offer_question()
-
+                # Reset the timer before starting the challenge
+                if self.timer:
+                    self.timer.cancel()
+                    self.timer = None
+                self.offer_question()
         elif event == "skip_turn":
             self.sound_manager.play_skip_sound()
             opponent = self.select_opponent()
             if opponent:
                 opponent.add_skip_turn()
-                messagebox.showinfo(
-                    "Skip Turn", f"{opponent.name} will skip their next turn!"
-                )
+
+            # Do not return or call advance_player here; let submit_answer handle it
 
     def select_opponent(self):
         """
@@ -345,28 +533,66 @@ class Game:
         Returns:
             Player: The selected opponent, or None if selection is canceled.
         """
+        # opponent_names = [p.name for p in self.players if p != self.current_player]
+        # if not opponent_names:
+        #     return None
+
+        # # Create a dictionary with integer keys for the opponent names
+        # opponent_dict = {i + 1: name for i, name in enumerate(opponent_names)}
+        # opponent_list = "\n".join(f"{k}: {v}" for k, v in opponent_dict.items())
+
+        # opponent_key = simpledialog.askinteger(
+        #     "Select Opponent",
+        #     f"Choose an opponent:\n{opponent_list}",
+        #     minvalue=1,
+        #     maxvalue=len(opponent_dict),
+        # )
+        # opponent_name = opponent_dict.get(opponent_key)
+        # Create a new Toplevel window
         opponent_names = [p.name for p in self.players if p != self.current_player]
         if not opponent_names:
             return None
 
-        # Create a dictionary with integer keys for the opponent names so that the player can select an opponent by entering the corresponding number.
-        opponent_dict = {i + 1: name for i, name in enumerate(opponent_names)}
-        opponent_key = simpledialog.askinteger(
-            "Select Opponent",
-            f"Choose an opponent:\n{'\n'.join(f'{k}: {v}' for k, v in opponent_dict.items())}",
-            minvalue=1,
-            maxvalue=len(opponent_dict),
+        # Create a new Toplevel window
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title("Select Opponent")
+        dialog.geometry("300x200")
+        dialog.grab_set()  # Make the dialog modal
+
+        label = ctk.CTkLabel(
+            dialog, text="Choose an opponent:", font=ctk.CTkFont(size=14)
         )
-        opponent_name = opponent_dict.get(opponent_key)
+        label.pack(pady=10)
 
-        if opponent_name in opponent_names:
-            for player in self.players:
-                if player.name == opponent_name:
-                    return player
+        # Variable to store the selected opponent
+        selected_opponent = ctk.StringVar(value=opponent_names[0])
 
-        else:
-            messagebox.showerror("Invalid Selection", "Please select a valid opponent.")
-            return self.select_opponent()
+        # Create OptionMenu for opponent selection
+        opponent_menu = ctk.CTkOptionMenu(
+            dialog, values=opponent_names, variable=selected_opponent
+        )
+        opponent_menu.pack(pady=10)
+
+        def on_confirm():
+            dialog.destroy()
+
+        confirm_button = ctk.CTkButton(dialog, text="Confirm", command=on_confirm)
+        confirm_button.pack(pady=10)
+
+        self.root.wait_window(dialog)  # Wait until the dialog is closed
+
+        opponent_name = selected_opponent.get()
+
+        for player in self.players:
+            if player.name == opponent_name:
+                return player
+
+        CTkMessagebox(
+            title="Invalid Selection",
+            message="Please select a valid opponent.",
+            icon="warning",
+        )
+        return self.select_opponent()
 
     def advance_player(self):
         """
@@ -387,7 +613,13 @@ class Game:
         """
         Handle the end of the game.
         """
-        # Destroy the root window to terminate the Tkinter main loop
+        # Destroy the root window to terminate the customtkinter main loop
         self.root.destroy()
-        # Show the score chart after Tkinter has been closed
+        # Show the score chart after customtkinter has been closed
         Chart.show_score_chart(self.players)
+
+
+if __name__ == "__main__":
+    app = ctk.CTk()
+    game = Game(app)
+    app.mainloop()
