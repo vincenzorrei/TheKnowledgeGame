@@ -282,12 +282,12 @@ class Game:
         # Check if the current player is skipped
         if self.current_player.skip_turns > 0:
             self.current_player.skip_turns -= 1
+            self.sound_manager.play_skip_sound()
             CTkMessagebox(
                 title="Skip Turn",
                 message=f"{self.current_player.name}'s turn is skipped!",
                 icon="info",
             ).get()
-            self.sound_manager.play_skip_sound()
             self.advance_player()
             self.next_turn()
             return
@@ -521,7 +521,7 @@ class Game:
                     self.timer = None
                 self.offer_question()
         elif event == "skip_turn":
-            self.sound_manager.play_skip_sound()
+            self.sound_manager.choose_player_to_skip_sound()
             opponent = self.select_opponent(event="skip_turn")
             if opponent:
                 opponent.add_skip_turn()

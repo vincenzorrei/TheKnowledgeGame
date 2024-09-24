@@ -27,6 +27,8 @@ class SoundManager:
         self.time_up_sound_path = os.path.join("sounds", "time_up.wav")
         self.challenge_sound_path = os.path.join("sounds", "challenge.wav")
         self.skip_sound_path = os.path.join("sounds", "skip.wav")
+        self.end_of_round_path = os.path.join("sounds", "end_of_round.wav")
+        self.select_player_to_skip_sound_path = os.path.join("sounds", "click.wav")
         self.play_end_of_game_path = os.path.join("sounds", "end_of_game.wav")
 
     def play_sound(self, sound_path):
@@ -78,6 +80,12 @@ class SoundManager:
         Play the sound for a skip turn event.
         """
         self.play_sound(self.skip_sound_path)
+
+    def choose_player_to_skip_sound(self):
+        """
+        Play the sound for choosing a player to skip.
+        """
+        self.play_sound(self.select_player_to_skip_sound_path)
 
     def play_end_of_game_sound(self):
         """
