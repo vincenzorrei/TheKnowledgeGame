@@ -51,8 +51,20 @@ class Game:
         )
         self.start_button.pack()
 
-        self.question_label = tk.Label(self.root, text="", wraplength=500)
-        self.answer_entry = tk.Entry(self.root)
+        # Create a frame for the question and timer
+        self.question_frame = tk.Frame(self.root)
+        self.question_label = tk.Label(self.question_frame, text="", wraplength=500)
+        self.timer_label = tk.Label(
+            self.question_frame, text="", fg="red", font=("Helvetica", 14)
+        )
+
+        # Place the question label in the frame; timer_label will be packed when needed
+        self.question_label.pack(pady=10)
+        # Do not pack timer_label yet
+
+        # Reference timer_label in root so Timer can access it
+        self.root.timer_label = self.timer_label
+
         self.submit_button = tk.Button(
             self.root, text="Submit Answer", command=self.submit_answer
         )
@@ -120,6 +132,12 @@ class Game:
         Offer a question to the player by showing the domain and difficulty.
         The player can choose to accept or re-draw.
         """
+        # Hide previous question and timer
+        self.question_frame.pack_forget()
+        self.timer_label.pack_forget()
+        self.timer_label.config(text="")
+        self.question_label.config(text="")
+
         unasked_questions = [q for q in self.questions if not q.asked]
         if not unasked_questions:
             self.end_game()
@@ -133,7 +151,7 @@ class Game:
 
         accept = messagebox.askyesno(
             "Question Offer",
-            f"{self.current_player.name}, your question is from the domain '{domain}' with difficulty level {difficulty}.\nDo you accept this question?",
+            f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty}.\nDo you accept this question?",
         )
 
         if accept:
@@ -147,10 +165,21 @@ class Game:
         """
         Display the current question to the player.
         """
+        # Cancel any existing timer
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
+
         self.question_label.config(
             text=f"{self.current_player.name}, here is your question:\n\n{self.current_question.text}"
         )
-        self.question_label.pack()
+        self.timer_label.config(text="")  # Reset timer label text
+
+        # Pack the question frame
+        self.question_frame.pack(pady=20)
+
+        # Remove the submit button if it is visible
+        self.submit_button.pack_forget()
 
         # Calculate timers
         word_count = len(self.current_question.text.split())
@@ -168,9 +197,18 @@ class Game:
         """
         Start the timer for answering the question.
         """
+        # Cancel any existing timer
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
+
+        # Keep the question text displayed
+        # Pack the timer_label to show the timer
+        self.timer_label.pack()
 
         self.submit_button.pack()
 
+        # Start the answer timer
         self.timer = Timer(self.root, self.answer_time, self.time_up)
         self.timer.start()
 
@@ -178,8 +216,13 @@ class Game:
         """
         Handle the submission of an answer.
         """
-        self.timer.cancel()
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
         self.submit_button.pack_forget()
+        # Hide the timer_label and question_frame
+        self.timer_label.pack_forget()
+        self.question_frame.pack_forget()
 
         # Ask the user to confirm if the answer is correct
         is_correct = messagebox.askyesno(
@@ -188,7 +231,7 @@ class Game:
         if is_correct and not self.is_challenge:
             points = self.current_question.difficulty
             # Double points if answered before time runs out
-            if self.timer.time_remaining > 0:
+            if self.timer and self.timer.time_remaining > 0:
                 points *= 2
             self.current_player.add_score(points)
             self.sound_manager.play_correct_sound()
@@ -212,15 +255,29 @@ class Game:
 
     def time_up(self):
         """
-        Handle the event when the time is up.
+        Handle the event when the answer time is up.
         """
-        messagebox.showinfo("Time's Up", "You ran out of time!")
-        self.answer_entry.pack_forget()
-        self.submit_button.pack_forget()
-        self.sound_manager.play_time_up_sound()
+        if self.is_challenge:
+            # For challenges, time up means the answer is incorrect
+            messagebox.showinfo(
+                "Time's Up", "Time is up! The answer is considered incorrect."
+            )
+            self.submit_button.pack_forget()
+            self.timer_label.pack_forget()
+            self.question_frame.pack_forget()
+            self.sound_manager.play_time_up_sound()
 
-        self.advance_player()
-        self.next_turn()
+            # Proceed as if the answer was incorrect
+            self.sound_manager.play_incorrect_sound()
+            self.advance_player()
+            self.next_turn()
+        else:
+            # For regular questions, nothing happens; player can still submit the answer
+            self.timer_label.config(text="Time's up! You can still submit your answer.")
+            # Cancel the timer to prevent further updates
+            if self.timer:
+                self.timer.cancel()
+                self.timer = None
 
     def handle_random_event(self):
         """
@@ -236,7 +293,12 @@ class Game:
                 )
                 self.is_challenge = True
                 # Swap the current player to the opponent
-                self.opponent_player = opponent
+                self.opponent_player = self.current_player
+                self.current_player = opponent
+                # Reset the timer before starting the challenge
+                if self.timer:
+                    self.timer.cancel()
+                    self.timer = None
                 self.display_question()
 
         elif event == "skip_turn":
