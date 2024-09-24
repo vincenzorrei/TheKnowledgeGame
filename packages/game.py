@@ -27,7 +27,7 @@ class Game:
         self.reading_time = 0
         self.answer_time = 0
         self.is_challenge = False
-        self.probability_of_event = 0.3  # Adjust as needed
+        self.probability_of_event = 0.8  # Adjust as needed
         self.rounds_completed = 0
 
         self.setup_ui()
@@ -53,9 +53,11 @@ class Game:
 
         # Create a frame for the question and timer
         self.question_frame = tk.Frame(self.root)
-        self.question_label = tk.Label(self.question_frame, text="", wraplength=500)
+        self.question_label = tk.Label(
+            self.question_frame, text="", font=("Helvetica", 13), wraplength=500
+        )
         self.timer_label = tk.Label(
-            self.question_frame, text="", fg="red", font=("Helvetica", 14)
+            self.question_frame, text="", fg="red", font=("Helvetica", 10)
         )
 
         # Place the question label in the frame; timer_label will be packed when needed
@@ -127,6 +129,17 @@ class Game:
 
         self.offer_question()
 
+    def choose_unasked_question(self):
+        """
+        Choose an unasked question randomly.
+        """
+        unasked_questions = [q for q in self.questions if not q.asked]
+        if not unasked_questions:
+            self.end_game()
+            return
+
+        return random.choice(unasked_questions)
+
     def offer_question(self):
         """
         Offer a question to the player by showing the domain and difficulty.
@@ -138,21 +151,24 @@ class Game:
         self.timer_label.config(text="")
         self.question_label.config(text="")
 
-        unasked_questions = [q for q in self.questions if not q.asked]
-        if not unasked_questions:
-            self.end_game()
-            return
-
-        self.current_question = random.choice(unasked_questions)
+        self.current_question = self.choose_unasked_question()
 
         # Show domain and difficulty
         domain = self.current_question.domain
         difficulty = self.current_question.difficulty
+        difficulty_str = "*" * int(difficulty)
 
-        accept = messagebox.askyesno(
-            "Question Offer",
-            f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty}.\nDo you accept this question?",
-        )
+        if not self.is_challenge:
+            accept = messagebox.askyesno(
+                "Question Offer",
+                f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty_str}\nDo you accept this question?",
+            )
+        else:
+            messagebox.showinfo(
+                "Question",
+                f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty_str}",
+            )
+            accept = True
 
         if accept:
             self.current_question.asked = True
@@ -187,7 +203,7 @@ class Game:
         self.answer_time = self.current_question.difficulty * 45
 
         if self.is_challenge:
-            self.answer_time = self.current_question.difficulty * 90
+            self.answer_time = self.current_question.difficulty * 60
 
         # Start the reading timer
         self.timer = Timer(self.root, self.reading_time, self.start_answer_timer)
@@ -216,6 +232,7 @@ class Game:
         """
         Handle the submission of an answer.
         """
+        time_remaining = self.timer.time_remaining
         if self.timer:
             self.timer.cancel()
             self.timer = None
@@ -228,27 +245,42 @@ class Game:
         is_correct = messagebox.askyesno(
             "Answer Confirmation", "Is the answer correct?"
         )
-        if is_correct and not self.is_challenge:
-            points = self.current_question.difficulty
-            # Double points if answered before time runs out
-            if self.timer and self.timer.time_remaining > 0:
-                points *= 2
-            self.current_player.add_score(points)
-            self.sound_manager.play_correct_sound()
+        if is_correct:
+            if self.is_challenge:
+                # Challenge: Current player gains points; opponent loses points
+                points = self.current_question.difficulty
+                if time_remaining < 0:
+                    points = 0
+                self.current_player.add_score(points)
+                self.opponent_player.add_score(-points)
+                self.sound_manager.play_correct_sound()
 
-            # Random event: Challenge or Skip Turn
-            event_chance = random.random()
-            if event_chance < self.probability_of_event:
-                self.handle_random_event()
+                messagebox.showinfo(
+                    "Challenge concluded",
+                    f"{self.current_player.name} gains {points} points!\n{self.opponent_player.name} loses {points} points!",
+                )
+            else:
+                # Regular question
+                points = self.current_question.difficulty
+                # Double points if answered before time runs out
+                if time_remaining > 0:
+                    points *= 2
+                self.current_player.add_score(points)
+                self.sound_manager.play_correct_sound()
 
-        elif is_correct and self.is_challenge:
-            points = self.current_question.difficulty * 2
-            self.current_player.add_score(points)
-            self.opponent_player.add_score(-points)
-            self.sound_manager.play_correct_sound()
+                # Random event: Challenge or Skip Turn
+                event_chance = random.random()
+                if event_chance < self.probability_of_event:
+                    self.handle_random_event()
+                    if self.is_challenge:
+                        return  # Exit early to handle the event
 
         else:
             self.sound_manager.play_incorrect_sound()
+
+        # Reset challenge flag and opponent after handling
+        self.is_challenge = False
+        self.opponent_player = None
 
         self.advance_player()
         self.next_turn()
@@ -287,19 +319,15 @@ class Game:
         if event == "challenge":
             self.sound_manager.play_challenge_sound()
             opponent = self.select_opponent()
-            if opponent:
-                messagebox.showinfo(
-                    "Challenge", f"You are challenging {opponent.name}!"
-                )
-                self.is_challenge = True
-                # Swap the current player to the opponent
-                self.opponent_player = self.current_player
-                self.current_player = opponent
-                # Reset the timer before starting the challenge
-                if self.timer:
-                    self.timer.cancel()
-                    self.timer = None
-                self.display_question()
+            self.opponent_player = opponent
+            self.is_challenge = True
+            messagebox.showinfo("Challenge", f"You are challenging {opponent.name}!")
+
+            # Reset the timer before starting the challenge
+            if self.timer:
+                self.timer.cancel()
+                self.timer = None
+            self.offer_question()
 
         elif event == "skip_turn":
             self.sound_manager.play_skip_sound()
@@ -312,19 +340,33 @@ class Game:
 
     def select_opponent(self):
         """
-        Allow the player to select an opponent.
+        Allow the current player to select an opponent.
+
+        Returns:
+            Player: The selected opponent, or None if selection is canceled.
         """
         opponent_names = [p.name for p in self.players if p != self.current_player]
         if not opponent_names:
             return None
 
-        opponent_name = simpledialog.askstring(
-            "Select Opponent", f"Choose an opponent: {', '.join(opponent_names)}"
+        # Create a dictionary with integer keys for the opponent names so that the player can select an opponent by entering the corresponding number.
+        opponent_dict = {i + 1: name for i, name in enumerate(opponent_names)}
+        opponent_key = simpledialog.askinteger(
+            "Select Opponent",
+            f"Choose an opponent:\n{'\n'.join(f'{k}: {v}' for k, v in opponent_dict.items())}",
+            minvalue=1,
+            maxvalue=len(opponent_dict),
         )
-        for player in self.players:
-            if player.name == opponent_name:
-                return player
-        return None
+        opponent_name = opponent_dict.get(opponent_key)
+
+        if opponent_name in opponent_names:
+            for player in self.players:
+                if player.name == opponent_name:
+                    return player
+
+        else:
+            messagebox.showerror("Invalid Selection", "Please select a valid opponent.")
+            return self.select_opponent()
 
     def advance_player(self):
         """
