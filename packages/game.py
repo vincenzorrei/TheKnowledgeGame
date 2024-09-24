@@ -272,8 +272,8 @@ class Game:
                 title="Continue Game",
                 message="Do you want to play another round?",
                 icon="question",
-                option_1="Yes",
-                option_2="No",
+                option_1="No",
+                option_2="Yes",
             ).get()
             if continue_game == "No":
                 self.end_game()
@@ -286,7 +286,7 @@ class Game:
                 title="Skip Turn",
                 message=f"{self.current_player.name}'s turn is skipped!",
                 icon="info",
-            )
+            ).get()
             self.sound_manager.play_skip_sound()
             self.advance_player()
             self.next_turn()
@@ -327,18 +327,20 @@ class Game:
         if not self.is_challenge:
             accept = CTkMessagebox(
                 title=f"Question Offer for {self.current_player.name}",
-                message=f"Domain: {domain}\nDifficulty level: {difficulty_str}\nDo you accept this question?",
+                message=f"{self.current_player.name}\n\nDomain: {domain}\nDifficulty level: {difficulty_str}\n\nDo you accept?",
                 icon="question",
-                option_1="Yes",
-                option_2="No",
+                icon_size=(20, 20),
+                option_1="No",
+                option_2="Yes",
             ).get()
             accept = accept == "Yes"
         else:
             CTkMessagebox(
-                title="Question",
-                message=f"{self.current_player.name}\nDomain: {domain}\nDifficulty level: {difficulty_str}",
+                title=f"Question Offer for {self.current_player.name}",
+                message=f"{self.current_player.name}\n\nDomain: {domain}\nDifficulty level: {difficulty_str}",
                 icon="info",
-            )
+                icon_size=(20, 20),
+            ).get()
             accept = True
 
         if accept:
@@ -419,8 +421,8 @@ class Game:
                 title="Answer Confirmation",
                 message="Is the answer correct?",
                 icon="question",
-                option_1="Yes",
-                option_2="No",
+                option_1="No",
+                option_2="Yes",
             ).get()
             == "Yes"
         )
@@ -507,11 +509,11 @@ class Game:
             if opponent:
                 self.opponent_player = opponent
                 self.is_challenge = True
-                CTkMessagebox(
-                    title="Challenge",
-                    message=f"You are challenging {opponent.name}!",
-                    icon="info",
-                )
+                # CTkMessagebox(
+                #     title="Challenge",
+                #     message=f"You are challenging {opponent.name}!",
+                #     icon="info",
+                # )
 
                 # Reset the timer before starting the challenge
                 if self.timer:
@@ -520,48 +522,38 @@ class Game:
                 self.offer_question()
         elif event == "skip_turn":
             self.sound_manager.play_skip_sound()
-            opponent = self.select_opponent()
+            opponent = self.select_opponent(event="skip_turn")
             if opponent:
                 opponent.add_skip_turn()
 
             # Do not return or call advance_player here; let submit_answer handle it
 
-    def select_opponent(self):
+    def select_opponent(self, event="challenge"):
         """
         Allow the current player to select an opponent.
 
         Returns:
             Player: The selected opponent, or None if selection is canceled.
         """
-        # opponent_names = [p.name for p in self.players if p != self.current_player]
-        # if not opponent_names:
-        #     return None
 
-        # # Create a dictionary with integer keys for the opponent names
-        # opponent_dict = {i + 1: name for i, name in enumerate(opponent_names)}
-        # opponent_list = "\n".join(f"{k}: {v}" for k, v in opponent_dict.items())
-
-        # opponent_key = simpledialog.askinteger(
-        #     "Select Opponent",
-        #     f"Choose an opponent:\n{opponent_list}",
-        #     minvalue=1,
-        #     maxvalue=len(opponent_dict),
-        # )
-        # opponent_name = opponent_dict.get(opponent_key)
         # Create a new Toplevel window
         opponent_names = [p.name for p in self.players if p != self.current_player]
         if not opponent_names:
             return None
 
+        title = "Challenge"
+        text = "Choose an opponent:"
+        if event == "skip_turn":
+            title = "Skip Turn"
+            text = "Select a player to skip his turn:"
+
         # Create a new Toplevel window
         dialog = ctk.CTkToplevel(self.root)
-        dialog.title("Select Opponent")
+        dialog.title(title)
         dialog.geometry("300x200")
         dialog.grab_set()  # Make the dialog modal
 
-        label = ctk.CTkLabel(
-            dialog, text="Choose an opponent:", font=ctk.CTkFont(size=14)
-        )
+        label = ctk.CTkLabel(dialog, text=text, font=ctk.CTkFont(size=14))
         label.pack(pady=10)
 
         # Variable to store the selected opponent
@@ -591,7 +583,7 @@ class Game:
             title="Invalid Selection",
             message="Please select a valid opponent.",
             icon="warning",
-        )
+        ).get()
         return self.select_opponent()
 
     def advance_player(self):
