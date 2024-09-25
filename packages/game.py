@@ -378,6 +378,7 @@ class Game:
 
         if self.is_challenge:
             self.answer_time = self.current_question.difficulty * 60
+            self.sound_manager.play_challenge_suspance_sound()
 
         # Start the reading timer
         self.timer = Timer(self.root, self.reading_time, self.start_answer_timer)
@@ -474,7 +475,7 @@ class Game:
                 title="Time's Up",
                 message="Time is up! The answer is considered incorrect.",
                 icon="warning",
-            )
+            ).get()
             self.submit_button.pack_forget()
             self.timer_label.pack_forget()
             self.question_frame.pack_forget()

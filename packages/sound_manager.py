@@ -26,6 +26,9 @@ class SoundManager:
         self.incorrect_sound_path = os.path.join("sounds", "incorrect.wav")
         self.time_up_sound_path = os.path.join("sounds", "time_up.wav")
         self.challenge_sound_path = os.path.join("sounds", "challenge.wav")
+        self.challenge_suspance_sound_path = os.path.join(
+            "sounds", "challenge_suspance.wav"
+        )
         self.skip_sound_path = os.path.join("sounds", "skip.wav")
         self.end_of_round_path = os.path.join("sounds", "end_of_round.wav")
         self.select_player_to_skip_sound_path = os.path.join("sounds", "click.wav")
@@ -74,6 +77,12 @@ class SoundManager:
         Play the sound for a challenge event.
         """
         self.play_sound(self.challenge_sound_path)
+
+    def play_challenge_suspance_sound(self):
+        """
+        Play the sound for the challenge suspance.
+        """
+        self.play_sound(self.challenge_suspance_sound_path)
 
     def play_skip_sound(self):
         """
