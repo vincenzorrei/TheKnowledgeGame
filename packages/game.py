@@ -216,22 +216,24 @@ class Game:
 
     def start_game(self):
         """
-        Start the game after collecting player names.
+        Start the game after collecting the player names.
         """
         names = self.name_entry.get().split(",")
         if not names:
             CTkMessagebox(
-                title="Error",
-                message="Please enter at least one player name.",
+                title="Errore",
+                message="Per favore inserisci almeno un nome di giocatore.",
                 icon="cancel",
-            )
+            ).get()
             return
 
         self.players = [Player(name.strip()) for name in names if name.strip()]
         if not self.players:
             CTkMessagebox(
-                title="Error", message="Please enter valid player names.", icon="cancel"
-            )
+                title="Errore",
+                message="Per favore inserisci nomi di giocatori validi.",
+                icon="cancel",
+            ).get()
             return
 
         self.name_label.pack_forget()
@@ -239,13 +241,110 @@ class Game:
         self.start_button.pack_forget()
         self.main_frame.pack_forget()
 
-        # Pack the sidebar frame now
-        self.sidebar_frame.pack(side="right", fill="y")
-
         # Load questions from Excel
         excel_reader = ExcelReader("questions.xlsx")
         self.questions = excel_reader.load_questions()
 
+        # Show the menu for selecting domains and difficulty
+        self.show_domain_difficulty_menu()
+
+    def show_domain_difficulty_menu(self):
+        """
+        Display a menu to select domains and the minimum difficulty level.
+        """
+        # Get the list of unique domains from the questions
+        domains = sorted(set(q.domain for q in self.questions))
+
+        # Create a new Toplevel window
+        self.settings_window = ctk.CTkToplevel(self.root)
+        self.settings_window.title("Impostazioni del Gioco")
+        self.settings_window.geometry("400x400")
+        self.settings_window.grab_set()  # Make the window modal
+
+        # Section for domain selection
+        domain_label = ctk.CTkLabel(
+            self.settings_window,
+            text="Seleziona i Domini da Includere:",
+            font=ctk.CTkFont(size=14),
+        )
+        domain_label.pack(pady=(20, 10))
+
+        # Create checkboxes for each domain
+        self.domain_vars = {}
+        for domain in domains:
+            var = ctk.BooleanVar(value=True)
+            chk = ctk.CTkCheckBox(self.settings_window, text=domain, variable=var)
+            chk.pack(anchor="w", padx=20)
+            self.domain_vars[domain] = var
+
+        # Section for selecting minimum difficulty
+        difficulty_label = ctk.CTkLabel(
+            self.settings_window,
+            text="Seleziona il Livello Minimo di Difficoltà:",
+            font=ctk.CTkFont(size=14),
+        )
+        difficulty_label.pack(pady=(20, 10))
+
+        # Difficulty options (assuming difficulty levels are integers)
+        difficulties = sorted(set(int(q.difficulty) for q in self.questions))
+        self.min_difficulty_var = ctk.IntVar(value=min(difficulties))
+
+        # Create an OptionMenu for difficulty selection
+        difficulty_menu = ctk.CTkOptionMenu(
+            self.settings_window,
+            values=[str(d) for d in difficulties],
+            variable=self.min_difficulty_var,
+        )
+        difficulty_menu.pack(pady=10)
+
+        # Button to start the game
+        start_game_button = ctk.CTkButton(
+            self.settings_window,
+            text="Avvia il Gioco",
+            command=self.apply_settings_and_start_game,
+        )
+        start_game_button.pack(pady=20)
+
+    def apply_settings_and_start_game(self):
+        """
+        Apply the selected settings and start the game.
+        """
+        # Get the selected domains
+        selected_domains = [
+            domain for domain, var in self.domain_vars.items() if var.get()
+        ]
+        if not selected_domains:
+            CTkMessagebox(
+                title="Errore",
+                message="Per favore seleziona almeno un dominio.",
+                icon="warning",
+            ).get()
+            return
+
+        # Get the minimum difficulty
+        min_difficulty = self.min_difficulty_var.get()
+
+        # Filter questions based on selected domains and minimum difficulty
+        self.questions = [
+            q
+            for q in self.questions
+            if q.domain in selected_domains and int(q.difficulty) >= min_difficulty
+        ]
+        if not self.questions:
+            CTkMessagebox(
+                title="Errore",
+                message="Nessuna domanda corrisponde ai criteri selezionati.",
+                icon="warning",
+            ).get()
+            return
+
+        # Close the settings window
+        self.settings_window.destroy()
+
+        # Pack the sidebar frame
+        self.sidebar_frame.pack(side="right", fill="y")
+
+        # Proceed to the first turn
         self.next_turn()
 
     def next_turn(self):
